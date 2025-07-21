@@ -1,0 +1,12 @@
+cd C:\Users\KEEM\Desktop\armyworm_dashboard
+
+venv\Scripts\activate
+
+
+pip install streamlit pandas geopandas numpy matplotlib seaborn plotly leafmap folium rasterio xarray pyproj shapely fiona streamlit-folium
+pip install localtileserver
+
+#deactivate
+
+streamlit run app.py
+
