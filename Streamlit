@@ -6,6 +6,7 @@ venv310\Scripts\activate
 
 pip install xarray
 
+streamlit run faw_dashboard.py
 
 
 pip install streamlit pandas geopandas numpy matplotlib seaborn plotly leafmap folium rasterio xarray pyproj shapely fiona streamlit-folium
