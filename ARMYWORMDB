@@ -1,1 +1,96 @@
 
+import streamlit as st
+import pandas as pd
+import geopandas as gpd
+import folium
+from folium.plugins import MarkerCluster
+from streamlit_folium import st_folium
+import matplotlib.pyplot as plt
+import plotly.express as px
+
+st.set_page_config(layout="wide")
+
+# Load CSV
+csv_path = "ProjectedFAW.csv"
+df = pd.read_csv(csv_path)
+
+# Classify severity
+
+def classify_severity(value):
+    if value < 10:
+        return "Low"
+    elif 10 <= value <= 30:
+        return "Moderate"
+    else:
+        return "High"
+
+df["Severity_Class"] = df["Severity"].apply(classify_severity)
+
+# Map severity class to color
+severity_color_map = {
+    "Low": "green",
+    "Moderate": "orange",
+    "High": "red"
+}
+df["color"] = df["Severity_Class"].map(severity_color_map)
+
+# Layout columns
+col1, col2, col3 = st.columns([1, 2, 2])
+
+with col1:
+    st.header("Filters")
+    selected_region = st.selectbox("Select Region", options=["All"] + sorted(df["Region"].unique().tolist()))
+    selected_class = st.multiselect("Select Severity Class", options=df["Severity_Class"].unique(), default=df["Severity_Class"].unique())
+
+# Filter data
+filtered_df = df.copy()
+if selected_region != "All":
+    filtered_df = filtered_df[filtered_df["Region"] == selected_region]
+if selected_class:
+    filtered_df = filtered_df[filtered_df["Severity_Class"].isin(selected_class)]
+
+with col2:
+    st.header("FAW Severity Map")
+    m = folium.Map(location=[df["lat"].mean(), df["lon"].mean()], zoom_start=9, control_scale=True)
+    marker_cluster = MarkerCluster().add_to(m)
+
+    for _, row in filtered_df.iterrows():
+        folium.CircleMarker(
+            location=[row["lat"], row["lon"]],
+            radius=6,
+            color=row["color"],
+            fill=True,
+            fill_color=row["color"],
+            fill_opacity=0.9,
+            popup=folium.Popup(f"<b>Village:</b> {row['Village']}<br><b>Severity:</b> {row['Severity']}", max_width=200)
+        ).add_to(marker_cluster)
+
+    st_data = st_folium(m, width=700, height=550)
+
+with col3:
+    st.header("Severity Analytics")
+
+    # Bar graph: Severity per Village
+    df_sorted = filtered_df.sort_values("Severity", ascending=False)
+    fig_bar = px.bar(
+        df_sorted,
+        x="Village",
+        y="Severity",
+        color="Severity_Class",
+        color_discrete_map=severity_color_map,
+        title="Severity Level by Village"
+    )
+    st.plotly_chart(fig_bar, use_container_width=True)
+
+    # Pie chart: Distribution of Severity Classes
+    severity_counts = filtered_df["Severity_Class"].value_counts().reset_index()
+    severity_counts.columns = ["Severity_Class", "Count"]
+    fig_pie = px.pie(
+        severity_counts,
+        names="Severity_Class",
+        values="Count",
+        color="Severity_Class",
+        color_discrete_map=severity_color_map,
+        title="Distribution of Severity Classes"
+    )
+    st.plotly_chart(fig_pie, use_container_width=True)
